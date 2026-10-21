@@ -19,7 +19,7 @@ def hotel_search(query: str) -> str:
 
     response = tavily_client.search(
         query,
-        max_results=5
+        max_results=3
     )
 
     results = []

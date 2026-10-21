@@ -99,7 +99,7 @@ def flight_search(destination: str, origin: str = "KUL") -> str:
 
     params = {
         "access_key": AVIATIONSTACK_API_KEY,
-        "limit": 10,
+        "limit": 3,
         "dep_iata": origin,
         "arr_iata": destination
     }
