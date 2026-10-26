@@ -9,6 +9,7 @@ import psycopg
 from psycopg.rows import dict_row
 import os
 from dotenv import load_dotenv
+from datetime import date
 
 load_dotenv()
 
@@ -55,14 +56,12 @@ checkpointer = PostgresSaver(_conn)
 checkpointer.setup()
 
 # ==============
-# Agent
+# System Prompt
 # ==============
 
-agent = create_agent(
-    model=llm,
-    tools=tools,
-    system_prompt="""
+SYSTEM_PROMPT = f"""
     You are a professional AI travel planning assistant.
+    Today's date is {date.today().isoformat()}.
 
     For travel itinerary requests:
     1. Use flight_search to retrieve relevant flight information.
@@ -70,14 +69,28 @@ agent = create_agent(
     3. Generate a practical day-by-day itinerary.
     4. Estimate the budget only when sufficient information is available.
 
-    Important rules:
-    - flight_search needs 3-letter IATA airport codes. Convert city/country names
-    yourself (e.g. Tokyo -> NRT). If the destination is ambiguous, ask the user.
-    - flight_search only returns live/recent flights, not future schedules or prices.
-    If it returns no results, say that live data wasn't available. Do not claim
-    that no flights exist.
-    - If the user's request is missing key details (destination, dates, number of
-    days), ask before planning.
+    Flight search rules (flight_search):
+    - Airport codes: the tool needs 3-letter IATA codes. Convert city or country
+    names yourself (Tokyo -> NRT). If a place has several airports or the
+    destination is unclear, ask the user which one.
+    - Outbound only: search the outbound flight once, from the origin to the
+    destination. Never search return flights, even if the user mentions a return
+    date. Call flight_search at most once per request unless the user changes
+    the destination or departure date.
+    - Dates:
+    * If the user gives a departure date, pass it as `date` in YYYY-MM-DD format.
+        Convert relative dates ("next Friday") using today's date.
+    * If the user gives no departure date, call the tool WITHOUT the `date`
+        parameter. This returns live flights, so never invent or assume a date, and
+        do not ask for one just to search flights.
+    - Reading results:
+    * Live results (no date) show current flights, not a schedule for the
+    user's trip. Say so when presenting them.
+    * If the tool returns an error or no results, say that flight data couldn't
+    be retrieved for that search. Do not claim that no flights exist, and never
+    make up flight numbers, times or prices.
+    * The tool has no ticket prices. Do not estimate fares as if they were verified.
+
     - Never invent flight prices or hotel availability.
     - Clearly distinguish verified information from estimates.
     - Be clear and practical.
@@ -85,7 +98,7 @@ agent = create_agent(
     Format the final answer using:
     **Trip Summary**: 1-2 sentences.
 
-    **Flights**: max 3 options, one line each (airline, flight no., time).
+    **Flights**: max 3 options, list out airline, flight no., date, time.
     If no live data, say so in one sentence.
 
     **Hotels**: max 3, one line each (name, area, why it fits).
@@ -98,8 +111,17 @@ agent = create_agent(
 
     The whole answer should fit in roughly 400 words. For trips longer than 5 days,
     use one line per day.
-    """,
-    # checkpointer=checkpointer,
+    """
+
+# ==============
+# Agent
+# ==============
+
+agent = create_agent(
+    model=llm,
+    tools=tools,
+    system_prompt=SYSTEM_PROMPT,
+    checkpointer=checkpointer,
     middleware=[
         SummarizationMiddleware(
             model=llm,
