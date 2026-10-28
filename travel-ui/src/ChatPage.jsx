@@ -2,7 +2,22 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
 export default function ChatPage() {
-	const [messages, setMessages] = useState([]);
+
+	const WELCOME = {
+		role: "assistant",
+		content: `**Welcome to Trip Planner!**
+
+I can help you plan your next trip. Here's how to get started:
+
+- **Tell me your travel plans:** Where you want to go, your travel dates or trip length, and your budget.
+- **Find flights and hotels:** I can search flight schedules and recommend hotels. Flight ticket prices are not available.
+- **Customize your trip:** Ask me to change your itinerary, find cheaper hotels, or suggest other activities.
+- **Continue the conversation:** I remember the details during this chat, but refreshing the page or clicking the New trip button starts a new conversation.
+
+_Example: "Plan a 3-day trip to Tokyo from Kuala Lumpur with a mid-range budget."_`,
+	};
+
+	const [messages, setMessages] = useState([WELCOME]);
 	const [threadId, setThreadId] = useState(() => crypto.randomUUID());
 	const [input, setInput] = useState("");
 	const [loading, setLoading] = useState(false);
@@ -11,7 +26,7 @@ export default function ChatPage() {
 	const API_URL = "http://127.0.0.1:8000";
 
 	function newTrip() {
-		setMessages([]);
+		setMessages([WELCOME]);
 		setThreadId(crypto.randomUUID());
 	}
 
@@ -64,12 +79,6 @@ export default function ChatPage() {
 		}
 	}
 
-	const EXAMPLES = [
-		"5 days in Tokyo from Kuala Lumpur, mid-range budget",
-		"Weekend in Bangkok, I love street food",
-		"Hotels near Shibuya for 3 nights"
-	];
-
 	const bubble = {
 		user: "self-end rounded-br-sm bg-sky-700 text-white whitespace-pre-wrap",
 		assistant: "self-start rounded-bl-sm border border-slate-300 bg-white",
@@ -86,7 +95,7 @@ export default function ChatPage() {
 							Flights, hotels and a day-by-day plan
 						</p>
 					</div>
-					{messages.length > 0 && (
+					{messages.length > 1 && (
 						<button
 							onClick={newTrip}
 							className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:border-sky-600"
@@ -97,25 +106,6 @@ export default function ChatPage() {
 				</header>
 
 				<main className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
-					{messages.length === 0 && (
-						<div className="my-auto">
-							<p className="mb-3 text-slate-600">
-								Tell me where you want to go, for how long, and your budget.
-							</p>
-							<div className="flex flex-col items-start gap-2">
-								{EXAMPLES.map((ex) => (
-									<button
-										key={ex}
-										onClick={() => send(ex)}
-										className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-left hover:border-sky-600"
-									>
-										{ex}
-									</button>
-								))}
-							</div>
-						</div>
-					)}
-
 					{messages.map((m, i) => (
 						<div
 							key={i}
