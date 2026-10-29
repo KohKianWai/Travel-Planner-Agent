@@ -102,7 +102,7 @@ def api_call(url: str, params: dict):
 
 
 @tool
-def flight_search(destination: str, origin: str = "KUL") -> str:
+def flight_search_live(destination: str, origin: str = "KUL") -> str:
     """Search live flight schedules and status between two airports.
     Returns airline, flight number, times, terminals, gates and delays.
     Does NOT return ticket prices.
