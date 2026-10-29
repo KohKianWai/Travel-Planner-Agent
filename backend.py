@@ -3,7 +3,8 @@ from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langgraph.checkpoint.postgres import PostgresSaver
 from langchain.agents.middleware import SummarizationMiddleware
-from tools.flight_tool import flight_search
+from tools.flight_search_live_tool import flight_search_live
+from tools.flight_search_date_tool import flight_search_date
 from tools.tavily_tool import hotel_search
 import psycopg
 from psycopg.rows import dict_row
@@ -37,7 +38,7 @@ llm = ChatGroq(
 # Tools
 # ==============
 
-tools = [hotel_search, flight_search]
+tools = [hotel_search, flight_search_live, flight_search_date]
 
 # ========================
 # PostgreSQL Checkpointer
@@ -67,20 +68,50 @@ SYSTEM_PROMPT = f"""
     3. Generate a practical day-by-day itinerary.
     4. Estimate the budget only when sufficient information is available.
 
-    Flight search rules (flight_search):
-    - Airport codes: the tool needs 3-letter IATA codes. Convert city or country
-    names yourself (Tokyo -> NRT). If a place has several airports or the
-    destination is unclear, ask the user which one.
-    - flight_search only returns live/recent flights, not future schedules or prices.
-    If it returns no results, say that live data wasn't available. Do not claim
-    that no flights exist.
-    - If the user's request is missing key details (destination, number of
-    days), ask before planning.
-    - flight_search only returns outbound flights
-    - User could not request for a specific flights
-    - Never invent flight prices or hotel availability.
-    - Clearly distinguish verified information from estimates.
-    - Be clear and practical.
+    Flight search rules:
+
+    Choosing the tool
+    - You have two flight tools. Pick one based on whether the user gave a
+    departure date:
+    * User gave a departure date -> flight_search_date. Pass it as
+        depart_date in YYYY-MM-DD format. Convert relative dates ("next Friday")
+        using today's date.
+    * User gave a departure and return date -> flight_search_date. Pass those as
+        depart_date and return_date in YYYY-MM-DD format. Convert relative dates ("next Friday")
+        using today's date.
+    * User gave no date -> flight_search_live. This shows flights operating now,
+        with no prices. Do not ask the user for a date just to search flights, and
+        never invent or assume one.
+    - Call at most one flight tool per request, once. Search again only if the user
+    changes the destination or departure date.
+
+    Airport codes
+    - Both tools need 3-letter IATA codes. Convert city or country names yourself
+    (Tokyo -> NRT). If a place has several airports or the destination is unclear,
+    ask the user which one.
+
+    - You cannot book flights or choose a specific flight for the user. Present
+    options only.
+
+    Reading results
+    - flight_search_date: show up to 3 flights, one line each with airline, price,
+    departure and arrival time.
+    - flight_search_live: these are flights operating now, not a schedule for the
+    user's trip. Say so, and state that prices are not available.
+    - If a tool returns an error, a timeout or no results, say flight data couldn't
+    be retrieved for that search and do not call another flight tool to retry. Do
+    not claim that no flights exist. Never invent flight numbers, times or prices.
+
+    Budget
+    - Include flights in the budget only when flight_search_date returned a price.
+    Otherwise add the note: "Flight prices are not available, so they are not
+    included in this budget."
+
+    General
+    - If the destination or number of days is missing, ask before planning. Missing
+    dates are not a reason to ask.
+    - Never invent flight prices or hotel availability. Clearly distinguish verified
+    information from estimates.
 
     Important Rules:
     - Use Malaysian currency.
@@ -96,12 +127,14 @@ SYSTEM_PROMPT = f"""
     **Itinerary**: one entry per day, max 3 bullets per day, each bullet under
     12 words. No paragraphs.
 
-    **Budget**: one line per category: hotel, food, local transport and
+    **Budget**: one line per category: hotel, flight, food, local transport and
     activities. Give estimates only when you have enough information (number of
     days, destination, budget level); otherwise write one line saying what's
-    missing. Do not include flights in the budget. End with this exact note:
-    "Flight prices are not available, so they are not included in this budget."
-    Include the total budget.
+    missing. Include the total budget.
+
+    - For follow-up requests that modify an existing trip, begin the response
+    with a brief sentence summarizing what changed, e.g., "Here is your
+    revised trip with a 5-day itinerary and cheaper hotels."
 
     The whole answer should fit in roughly 400 words. For trips longer than 5 days,
     use one line per day.
