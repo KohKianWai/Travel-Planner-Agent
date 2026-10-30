@@ -1,13 +1,10 @@
 import os
 
-import re
 import certifi
-import airportsdata
-import pycountry
 from dotenv import load_dotenv
 from langchain.tools import tool
 import requests
-from datetime import date as date_cls, datetime
+from datetime import date as datetime
 
 load_dotenv()
 
@@ -16,11 +13,7 @@ os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 
 AVIATIONSTACK_API_KEY = os.getenv("AVIATIONSTACK_API_KEY")
 
-
 LIVE_FLIGHT_URL = "https://api.aviationstack.com/v1/flights"
-FUTURE_FLIGHT_URL = "https://api.aviationstack.com/v1/flightsFuture"
-
-AIRPORTS = airportsdata.load("IATA")
 
 def format_time(iso: str | None) -> str:
     """'2019-12-12T04:20:00+00:00' -> '12 Dec 04:20'"""
@@ -133,38 +126,6 @@ def flight_search_live(destination: str, origin: str = "KUL") -> str:
         return f"No flight data found for route {origin} to {destination}."
     header = f"Live flights {origin} -> {destination} ({len(flights)} results):"
     return header + "\n\n" + "\n\n".join(format_flight(f) for f in flights)
-
-    # Dated search (unavailable due to API limitation)
-    # try:
-    #     travel_date = datetime.strptime(date.strip(), "%Y-%m-%d").date()
-    # except ValueError:
-    #     return "Invalid date. Use YYYY-MM-DD, e.g. 2026-11-20."
-
-    # if travel_date <= date_cls.today():
-    #     return "Travel date cannot be in the past."
-
-    # params = {
-    #     "access_key": AVIATIONSTACK_API_KEY,
-    #     "iataCode": origin, 
-    #     "type": "departure",
-    #     "date": travel_date.isoformat(),
-    #     "airline_iata": "AK",
-    #     "limit": 100
-    # }
-
-    # flights_data, err = api_call(FUTURE_FLIGHT_URL, params)
-
-    # if err:
-    #     return err
-
-    # matches = [f for f in flights_data if str((f.get("arrival") or {}).get("iataCode", "")).upper() == destination][:3]
-    # print(matches)
-    # if not matches:
-    #     return (f"No scheduled flights found for {origin} to {destination} on {travel_date}. "
-    #             "This may mean the schedule isn't available yet, not that no flights exist.")
-    
-    # header = f"Scheduled flights {origin} -> {destination} on {travel_date} ({len(matches)} results):"
-    # return header + "\n\n" + "\n\n".join(format_future_flight(f) for f in matches)
 
     
 
