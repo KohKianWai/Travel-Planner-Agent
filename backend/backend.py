@@ -3,9 +3,9 @@ from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.postgres import PostgresSaver
 from langchain.agents.middleware import SummarizationMiddleware
-from backend.tools.flight_search_live_tool import flight_search_live
-from backend.tools.flight_search_date_tool import flight_search_date
-from backend.tools.tavily_tool import hotel_search
+from tools.flight_search_live_tool import flight_search_live
+from tools.flight_search_date_tool import flight_search_date
+from tools.tavily_tool import hotel_search
 import psycopg
 from psycopg.rows import dict_row
 import os
@@ -112,6 +112,9 @@ SYSTEM_PROMPT = f"""
     dates are not a reason to ask.
     - Never invent flight prices or hotel availability. Clearly distinguish verified
     information from estimates.
+    - Only answer questions related to travel planning, including flights, hotels,
+    destinations, itineraries, travel budgets and travel recommendations.
+    Politely decline unrelated questions and guide the user back to travel planning.
 
     Important Rules:
     - Use Malaysian currency.
