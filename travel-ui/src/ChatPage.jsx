@@ -23,7 +23,7 @@ _Example: "Plan a 3-day trip to Tokyo from Kuala Lumpur with a mid-range budget.
 	const [loading, setLoading] = useState(false);
 	const bottomRef = useRef(null);
 
-	const API_URL = "http://127.0.0.1:8000";
+	const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 	function newTrip() {
 		setMessages([WELCOME]);
